@@ -14,7 +14,7 @@ namespace ObjExport
 
         public ColorTransparencyLookup()
         {
-            _current = Util.ColorTransparencyToInt(
+            _current = ObjExportUtil.ColorTransparencyToInt(
               Command.DefaultColor, 0);
         }
 
@@ -26,7 +26,7 @@ namespace ObjExport
         /// </summary>
         public bool AddColorTransparency(Color color, int transparency)
         {
-            int trgb = Util.ColorTransparencyToInt(color, transparency);
+            int trgb = ObjExportUtil.ColorTransparencyToInt(color, transparency);
 
             if (!ContainsKey(trgb))
             {

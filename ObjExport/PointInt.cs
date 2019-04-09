@@ -8,9 +8,9 @@ namespace ObjExport
     /// </summary>
     public class PointInt : IComparable<PointInt>
     {
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int Z { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+        public double Z { get; set; }
 
         /// <summary>
         /// Consider a Revit length zero 
@@ -30,47 +30,42 @@ namespace ObjExport
         /// from feet to millimetre.
         /// 将给定的长度值从英尺转换为毫米。
         /// </summary>
-        static int ConvertFeetToMillimetres(double d)
+        static double ConvertFeetToMillimetres(double d)
         {
             if (0 < d)
             {
                 return _eps > d
                   ? 0
-                  : (int)(_feet_to_mm * d + 0.5);
+                  : (double)(_feet_to_mm * d + 0.5);
 
             }
             else
             {
                 return _eps > -d
                   ? 0
-                  : (int)(_feet_to_mm * d - 0.5);
+                  : (double)(_feet_to_mm * d - 0.5);
 
             }
         }
 
         public PointInt(XYZ p)
         {
-            X = ConvertFeetToMillimetres(p.X);
-            Y = ConvertFeetToMillimetres(p.Y);
-            Z = ConvertFeetToMillimetres(p.Z);
+            X = ConvertFeetToMillimetres(p.X) / 1000.0;
+            Y = ConvertFeetToMillimetres(p.Y) / 1000.0;
+            Z = ConvertFeetToMillimetres(p.Z) / 1000.0;
 
-            //if (switch_coordinates)
             if (true)
             {
-                //X = X;
-                //var tmp = Y;
-                //Y = Z;
-                //Z = tmp;
+                Y = -Y;
                 var tmp = Y;
                 Y = Z;
                 Z = tmp;
-                Z = -Z;
             }
         }
 
         public int CompareTo(PointInt a)
         {
-            int d = X - a.X;
+            double d = X - a.X;
 
             if (0 == d)
             {

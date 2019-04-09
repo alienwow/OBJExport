@@ -6,7 +6,7 @@ using Autodesk.Revit.DB;
 
 namespace ObjExport
 {
-    class Util
+    class ObjExportUtil
     {
         /// <summary>
         /// Return an English plural
@@ -24,7 +24,7 @@ namespace ObjExport
         /// </summary>
         public static string RealString(double a)
         {
-            return a.ToString("0.##");
+            return a.ToString("0.####");
         }
 
         /// <summary>

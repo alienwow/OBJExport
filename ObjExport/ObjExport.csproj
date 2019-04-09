@@ -100,6 +100,7 @@
     <Compile Include="Command.cs" />
     <Compile Include="Interfaces\IJtFaceEmitter.cs" />
     <Compile Include="ObjExporter.cs" />
+    <Compile Include="ObjModel.cs" />
     <Compile Include="PointInt.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Util.cs" />

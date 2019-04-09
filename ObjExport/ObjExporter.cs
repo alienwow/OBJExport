@@ -1,5 +1,4 @@
 ﻿#region Namespaces
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -11,6 +10,8 @@ namespace ObjExport
 {
     class ObjExporter : IJtFaceEmitter
     {
+        List<ObjModel> _objModels;
+
         /// <summary>
         /// Set this to support colour and transparency.
         /// </summary>
@@ -48,18 +49,14 @@ namespace ObjExport
 
         const string _mtl_mtllib = "mtllib {0}";
 
-        const string _mtl_usemtl = "usemtl {0}";
-
         const string _mtl_vertex = "v {0} {1} {2}";
 
-        const string _mtl_face = "f {0} {1} {2}";
+        //const string _mtl_face = "f {0} {1} {2}";
 
         #endregion // MTL statement format strings
 
-        //VertexLookupXyz _vertices;
         VertexLookupInt _vertices;
 
-        //ColorLookup _colors;
         ColorTransparencyLookup _color_transparency_lookup;
 
         /// <summary>
@@ -92,82 +89,79 @@ namespace ObjExport
             _triangleCount = 0;
             _vertices = new VertexLookupInt();
             _triangles = new List<int>();
+            _objModels = new List<ObjModel>();
 
             if (_add_color)
             {
-                _color_transparency_lookup
-                  = new ColorTransparencyLookup();
+                _color_transparency_lookup = new ColorTransparencyLookup();
             }
         }
 
         /// <summary>
-        /// Set a colour for the following faces.
-        /// </summary>
-        void StoreColorTransparency(Color color, int transparency)
-        {
-            _triangles.Add(-1); // color marker
-
-            _triangles.Add(Util.ColorTransparencyToInt(
-              color, transparency));
-
-            _triangles.Add(0); // multiple of three
-        }
-
-        /// <summary>
+        /// 将给定三角形的顶点添加到顶点查找字典并发出三角形。
         /// Add the vertices of the given triangle to our
         /// vertex lookup dictionary and emit a triangle.
         /// </summary>
-        void StoreTriangle(MeshTriangle triangle)
+        void StoreTriangle(MeshTriangle triangle, ObjModel objModel)
         {
+            var vFace = new VFace();
             for (int i = 0; i < 3; ++i)
             {
                 XYZ p = triangle.get_Vertex(i);
-                PointInt q = new PointInt(p);
-                _triangles.Add(_vertices.AddVertex(q));
+
+                if (i == 0)
+                    vFace.Point1 = _vertices.AddVertex(new PointInt(p)) + 1;
+                else if (i == 1)
+                    vFace.Point2 = _vertices.AddVertex(new PointInt(p)) + 1;
+                else if (i == 2)
+                    vFace.Point3 = _vertices.AddVertex(new PointInt(p)) + 1;
             }
+
+            // 添加面数据
+            objModel.Faces.Add(vFace);
         }
 
         /// <summary>
         /// Emit a Revit geometry Face object and 
         /// return the number of resulting triangles.
         /// </summary>
-        public int EmitFace(Face face, Color color, int transparency)
+        public int EmitFace(Element e, Face face, Color color, int transparency)
         {
-            Debug.Assert(0 <= transparency,
-              "expected non-negative transparency");
-
-            Debug.Assert(100 >= transparency,
-              "expected transparency between 0 and 100");
-
-            Debug.Assert(100 * Math.Pow(2, 24) == 1677721600,
-              "expected shifted transparency to fit into a signed integer");
-
-            Debug.Assert(1677721600 < int.MaxValue,
-              "expected transparency to fit into a signed integer");
-
             ++_faceCount;
+            var objModel = new ObjModel()
+            {
+                UniqueId = e.UniqueId,
+                Faces = new List<VFace>(),
+                vt = new List<object>()
+            };
+            _objModels.Add(objModel);
 
+            // 保存每个实体的材质颜色
             if (_add_color && _color_transparency_lookup.AddColorTransparency(color, transparency))
             {
-                StoreColorTransparency(color, transparency);
+                // 设置材质颜色id
+                string name = ObjExportUtil.ColorTransparencyString(color, transparency);
+                objModel.Mtl = name;
             }
 
-            Mesh mesh = face.Triangulate(8.0 / 15.0);
+            Mesh mesh = face.Triangulate(0 / 15.0);
             //Mesh mesh = face.Triangulate();
 
-            int n = mesh.NumTriangles;
+            #region 保存 Vertex 及 Triangle 数据
 
-            Debug.Print(" {0} mesh triangles", n);
+            int numTriangles = mesh.NumTriangles;
 
-            for (int i = 0; i < n; ++i)
+            for (int i = 0; i < numTriangles; ++i)
             {
                 ++_triangleCount;
 
-                MeshTriangle t = mesh.get_Triangle(i);
-
-                StoreTriangle(t);
+                MeshTriangle meshTriangle = mesh.get_Triangle(i);
+                StoreTriangle(meshTriangle, objModel);
             }
-            return n;
+
+            #endregion
+
+            return numTriangles;
         }
 
         public int GetFaceCount()
@@ -223,10 +217,10 @@ namespace ObjExport
             // 透明度
             int transparency;
 
-            Color color = Util.IntToColorTransparency(
+            Color color = ObjExportUtil.IntToColorTransparency(
               trgb, out transparency);
 
-            string name = Util.ColorTransparencyString(
+            string name = ObjExportUtil.ColorTransparencyString(
               color, transparency);
 
             if (_more_transparent && 0 < transparency)
@@ -243,50 +237,16 @@ namespace ObjExport
         }
 
         /// <summary>
-        /// Obsolete: emit an XYZ vertex.
-        /// </summary>
-        static void EmitVertex(StreamWriter s, XYZ p)
-        {
-            s.WriteLine(_mtl_vertex,
-              Util.RealString(p.X),
-              Util.RealString(p.Y),
-              Util.RealString(p.Z));
-        }
-
-        /// <summary>
         /// Emit a vertex to OBJ. The first vertex listed 
         /// in the file has index 1, and subsequent ones
         /// are numbered sequentially.
         /// </summary>
         static void EmitVertex(StreamWriter s, PointInt p)
         {
-            s.WriteLine(_mtl_vertex, p.X, p.Y, p.Z);
-        }
-
-        /// <summary>
-        /// Set colour and transparency for subsequent 
-        /// faces, referring to the named materials in 
-        /// the material library.
-        /// </summary>
-        static void SetColorTransparency(StreamWriter s, int trgb)
-        {
-            int transparency;
-
-            Color color = Util.IntToColorTransparency(
-              trgb, out transparency);
-
-            string name = Util.ColorTransparencyString(
-              color, transparency);
-
-            s.WriteLine(_mtl_usemtl, name);
-        }
-
-        /// <summary>
-        /// Emit an OBJ triangular face.
-        /// </summary>
-        static void EmitFacet(StreamWriter s, int i, int j, int k)
-        {
-            s.WriteLine(_mtl_face, i + 1, j + 1, k + 1);
+            s.WriteLine(_mtl_vertex,
+              ObjExportUtil.RealString(p.X),
+              ObjExportUtil.RealString(p.Y),
+              ObjExportUtil.RealString(p.Z));
         }
 
         public void ExportTo(string path)
@@ -318,24 +278,34 @@ namespace ObjExport
                     EmitVertex(s, key);
                 }
 
-                int i = 0;
-                int n = _triangles.Count;
-
-                while (i < n)
+                foreach (var obj in _objModels)
                 {
-                    int i1 = _triangles[i++];
-                    int i2 = _triangles[i++];
-                    int i3 = _triangles[i++];
-
-                    if (-1 == i1)
-                    {
-                        SetColorTransparency(s, i2);
-                    }
-                    else
-                    {
-                        EmitFacet(s, i1, i2, i3);
-                    }
+                    s.WriteLine(obj.ToString());
                 }
+
+                //foreach (PointInt key in _vertices.Keys)
+                //{
+                //    EmitVertex(s, key);
+                //}
+
+                //int i = 0;
+                //int n = _triangles.Count;
+
+                //while (i < n)
+                //{
+                //    int i1 = _triangles[i++];
+                //    int i2 = _triangles[i++];
+                //    int i3 = _triangles[i++];
+
+                //    if (-1 == i1)
+                //    {
+                //        SetColorTransparency(s, i2);
+                //    }
+                //    else
+                //    {
+                //        EmitFacet(s, i1, i2, i3);
+                //    }
+                //}
             }
         }
 

@@ -13,7 +13,7 @@ namespace ObjExport.Interfaces
         /// <summary>
         /// Emit a face with a specified colour.
         /// </summary>
-        int EmitFace(Face face, Color color, int transparency);
+        int EmitFace(Element e, Face face, Color color, int transparency);
 
         /// <summary>
         /// Return the final triangle count 

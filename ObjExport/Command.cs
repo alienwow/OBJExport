@@ -136,6 +136,7 @@ namespace ObjExport
         bool ExportSolid(
           IJtFaceEmitter emitter,
           Document doc,
+          Element e,
           Solid solid,
           Color color,
           int transparency)
@@ -152,7 +153,7 @@ namespace ObjExport
 
                 t = (null == m) ? transparency : m.Transparency;
 
-                emitter.EmitFace(face, (null == c) ? DefaultColor : c, t);
+                emitter.EmitFace(e, face, (null == c) ? DefaultColor : c, t);
             }
             return true;
         }
@@ -187,8 +188,7 @@ namespace ObjExport
 
                 if (e is FamilyInstance)
                 {
-                    geo = geo.GetTransformed(
-                      Transform.Identity);
+                    geo = geo.GetTransformed(Transform.Identity);
                 }
 
                 GeometryInstance inst = null;
@@ -206,7 +206,7 @@ namespace ObjExport
 
                     if (null != solid
                       && 0 < solid.Faces.Size
-                      && ExportSolid(emitter, doc, solid,
+                      && ExportSolid(emitter, doc, e, solid,
                         color, transparency))
                     {
                         ++nSolids;
@@ -226,7 +226,7 @@ namespace ObjExport
 
                         if (null != solid
                           && 0 < solid.Faces.Size
-                          && ExportSolid(emitter, doc, solid,
+                          && ExportSolid(emitter, doc, e, solid,
                             color, transparency))
                         {
                             ++nSolids;
@@ -263,7 +263,7 @@ namespace ObjExport
                 return n;
             }
 
-            string desc = Util.ElementDescription(e);
+            string desc = ObjExportUtil.ElementDescription(e);
 
             Category cat = e.Category;
 
@@ -322,11 +322,11 @@ namespace ObjExport
               "{0} element{1} with {2} solid{3}, "
               + "{4} face{5}, {6} triangle{7} and "
               + "{8} vertice{9} exported.",
-              nElements, Util.PluralSuffix(nElements),
-              nSolids, Util.PluralSuffix(nSolids),
-              nFaces, Util.PluralSuffix(nFaces),
-              nTriangles, Util.PluralSuffix(nTriangles),
-              nVertices, Util.PluralSuffix(nVertices));
+              nElements, ObjExportUtil.PluralSuffix(nElements),
+              nSolids, ObjExportUtil.PluralSuffix(nSolids),
+              nFaces, ObjExportUtil.PluralSuffix(nFaces),
+              nTriangles, ObjExportUtil.PluralSuffix(nTriangles),
+              nVertices, ObjExportUtil.PluralSuffix(nVertices));
 
             InfoMsg(msg);
         }
@@ -390,7 +390,7 @@ namespace ObjExport
 
             var exporter = new ObjExporter();
             Options opt = app.Create.NewGeometryOptions();
-            opt.DetailLevel = ViewDetailLevel.Medium;
+            opt.DetailLevel = ViewDetailLevel.Coarse;
 
             ExportElements(exporter, collector, opt);
 
